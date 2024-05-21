@@ -1,17 +1,31 @@
 #!/usr/bin/python3
-"""Script to export data in the CSV format"""
+"""Gather data from an API"""
 import csv
-import requests as r
-import sys
+import json
+from sys import argv
+from urllib.request import urlopen
 
-if __name__ == "__main__":
-    user_id = sys.argv[1]
-    url = "https://jsonplaceholder.typicode.com/"
-    usr = r.get(url + "users/{}".format(user_id)).json()
-    username = usr.get("username")
-    to_do = r.get(url + "todos", params={"userId": user_id}).json()
 
-    with open("{}.csv".format(user_id), "w", newline="") as csvfile:
-        writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-        [writer.writerow([user_id, username, elm.get("completed"),
-                          elm.get("title")]) for elm in to_do]
+if __name__ == '__main__':
+    userId = argv[1]
+
+    url = f'https://jsonplaceholder.typicode.com/users?id={userId}'
+    with urlopen(url) as res:
+        body = res.read().decode('UTF-8')
+    data = json.loads(body)
+    username = data[0]['username']
+
+    url = f'https://jsonplaceholder.typicode.com/todos?userId={userId}'
+    with urlopen(url) as res:
+        body = res.read().decode('UTF-8')
+
+    data = json.loads(body)
+    with open(f'{userId}.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        for task in data:
+            writer.writerow(
+                [f'"{task["userId"]}"',
+                 f'"{username}"',
+                 f'"{task["completed"]}"',
+                 f'"{task["title"]}"']
+            )

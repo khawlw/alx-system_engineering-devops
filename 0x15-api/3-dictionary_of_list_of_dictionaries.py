@@ -1,18 +1,29 @@
 #!/usr/bin/python3
-"""Exports to-do list information of all employees to JSON format."""
+"""Gather data from an API"""
 import json
-import requests
+from urllib.request import urlopen
 
-if __name__ == "__main__":
-    url = "https://jsonplaceholder.typicode.com/"
-    users = requests.get(url + "users").json()
+if __name__ == '__main__':
+    url = f'https://jsonplaceholder.typicode.com/users'
+    with urlopen(url) as res:
+        body = res.read().decode('UTF-8')
+        users = json.loads(body)
 
-    with open("todo_all_employees.json", "w") as jsonfile:
-        json.dump({
-            u.get("id"): [{
-                "task": t.get("title"),
-                "completed": t.get("completed"),
-                "username": u.get("username")
-            } for t in requests.get(url + "todos",
-                                    params={"userId": u.get("id")}).json()]
-            for u in users}, jsonfile)
+    my_dict = {}
+    for user in users:
+        url = f'https://jsonplaceholder.typicode.com/todos?userId={user["id"]}'
+        my_list = []
+        with urlopen(url) as res:
+            body = res.read().decode('UTF-8')
+            data = json.loads(body)
+            for task in data:
+                my_list.append({
+                    "username": user['username'],
+                    "task": task['title'],
+                    "completed": task['completed']
+                })
+        my_dict[str(user['id'])] = my_list
+
+    output_dict = json.dumps(my_dict, indent=4)
+    with open('todo_all_employees.json', 'w') as f:
+        f.write(output_dict)

@@ -1,19 +1,32 @@
 #!/usr/bin/python3
-"""Exports to-do list information for a given employee ID to JSON format."""
+"""Gather data from an API"""
 import json
-import requests
-import sys
+from sys import argv
+from urllib.request import urlopen
 
-if __name__ == "__main__":
-    user_id = sys.argv[1]
-    url = "https://jsonplaceholder.typicode.com/"
-    user = requests.get(url + "users/{}".format(user_id)).json()
-    username = user.get("username")
-    todos = requests.get(url + "todos", params={"userId": user_id}).json()
+if __name__ == '__main__':
+    userId = argv[1]
 
-    with open("{}.json".format(user_id), "w") as jsonfile:
-        json.dump({user_id: [{
-                "task": t.get("title"),
-                "completed": t.get("completed"),
-                "username": username
-            } for t in todos]}, jsonfile)
+    url = f'https://jsonplaceholder.typicode.com/users?id={userId}'
+    with urlopen(url) as res:
+        body = res.read().decode('UTF-8')
+    data = json.loads(body)
+    username = data[0]['username']
+
+    url = f'https://jsonplaceholder.typicode.com/todos?userId={userId}'
+    with urlopen(url) as res:
+        body = res.read().decode('UTF-8')
+    data = json.loads(body)
+
+    my_list = []
+    for task in data:
+        my_list.append({
+            'task': task['title'],
+            'completed': task['completed'],
+            'username': username
+        })
+
+    my_dict = {userId: my_list}
+    json_obj = json.dumps(my_dict)
+    with open(f'{userId}.json', 'w') as f:
+        f.write(json_obj)

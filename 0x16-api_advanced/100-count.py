@@ -1,54 +1,49 @@
 #!/usr/bin/python3
-"""Function to count words in all hot posts of a given Reddit subreddit."""
+"""Implement count_words function"""
 import requests
 
 
-def count_words(subreddit, word_list, instances={}, after="", count=0):
-    """Prints counts of given words found in hot posts of a given subreddit.
-    Args:
-        subreddit (str): The subreddit to search.
-        word_list (list): The list of words to search for in post titles.
-        instances (obj): Key/value pairs of words/counts.
-        after (str): The parameter for the next page of the API results.
-        count (int): The parameter of results matched thus far.
+def count_words(subreddit, word_list, after=None, count_dict=None):
     """
-    url = "https://www.reddit.com/r/{}/hot/.json".format(subreddit)
-    headers = {
-        "User-Agent": "linux:0x16.api.advanced:v1.0.0 (by /u/bdov_)"
-    }
-    params = {
-        "after": after,
-        "count": count,
-        "limit": 100
-    }
-    response = requests.get(url, headers=headers, params=params,
+        queries the Reddit API, parses the title of all hot articles,
+        and prints a sorted count of given keywords
+    """
+    if not count_dict:
+        count_dict = {key.lower(): 0 for key in word_list}
+    url = 'https://www.reddit.com/r/{}/hot/.json'.format(subreddit)
+    params = {'limit': 100, 'after': after}
+    headers = {'User-Agent': 'custom user-agent'}
+
+    response = requests.get(url,
+                            params=params,
+                            headers=headers,
                             allow_redirects=False)
     try:
         results = response.json()
         if response.status_code == 404:
             raise Exception
     except Exception:
-        print("")
+        print()
         return
-
-    results = results.get("data")
-    after = results.get("after")
-    count += results.get("dist")
-    for c in results.get("children"):
-        title = c.get("data").get("title").lower().split()
-        for word in word_list:
-            if word.lower() in title:
-                times = len([t for t in title if t == word.lower()])
-                if instances.get(word) is None:
-                    instances[word] = times
-                else:
-                    instances[word] += times
-
-    if after is None:
-        if len(instances) == 0:
-            print("")
-            return
-        instances = sorted(instances.items(), key=lambda kv: (-kv[1], kv[0]))
-        [print("{}: {}".format(k, v)) for k, v in instances]
+    data = response.json().get('data', {})
+    for post in data.get('children', []):
+        title = post.get('data', {}).get('title', '').lower().split()
+        for key in count_dict.keys():
+            if key in title:
+                times = len([t for t in title if t == key.lower()])
+                count_dict[key] += times
+    if data.get('after'):
+        return count_words(subreddit, word_list, data.get('after'), count_dict)
     else:
-        count_words(subreddit, word_list, instances, after, count)
+        if len(word_list) > len(count_dict.keys()):
+            temp_dict = count_dict.copy()
+            for word in word_list:
+                word_in_lowecase = word.lower()
+                if word not in count_dict and word_in_lowecase in count_dict:
+                    count_dict[word_in_lowecase] += temp_dict[word_in_lowecase]
+        count_dict = dict(sorted(count_dict.items(),
+                                 key=lambda item: (item[1],
+                                                   item[0].lower()),
+                                 reverse=True))
+        [print('{}: {}'.format(key, value))
+         for key, value in count_dict.items() if value > 0]
